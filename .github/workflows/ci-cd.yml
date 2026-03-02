@@ -12,7 +12,7 @@
 # REQUIRED SECRETS (configure in GitHub → Settings → Secrets):
 # -----------------------------------------------------------
 # SONAR_TOKEN        - SonarQube authentication token
-# SONARQUBE_HOST_URL     - SonarQube server URL (e.g. https://sonar.yourserver.com)
+# SONAR_HOST_URL     - SonarQube server URL (e.g. https://sonar.yourserver.com)
 # HARBOR_REGISTRY        - Harbor registry URL (e.g. harbor.yourserver.com)
 # HARBOR_USERNAME        - Harbor robot account username
 # HARBOR_PASSWORD        - Harbor robot account password
@@ -115,13 +115,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Debug SonarQube URL
-        run: echo "SONAR_HOST_URL is ${{ secrets.SONARQUBE_HOST_URL }}"
+        run: echo "SONAR_HOST_URL is ${{ secrets.SONAR_HOST_URL }}"
 
       - name: "🔬 SonarQube Scan"
         uses: SonarSource/sonarqube-scan-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONARQUBE_HOST_URL }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
             -Dsonar.projectKey=zenora-web
@@ -134,7 +134,7 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONARQUBE_HOST_URL }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
   # ---------------------------------------------------------------------------
   # Dependency Scan (filesystem) 
