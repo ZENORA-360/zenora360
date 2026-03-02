@@ -122,7 +122,7 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=zenora-web
-            -Dsonar.projectName=ZENORA Web
+            -Dsonar.projectName="ZENORA Web"
             -Dsonar.sources=src
             -Dsonar.exclusions=**/node_modules/**,**/*.test.*,**/dist/**
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
