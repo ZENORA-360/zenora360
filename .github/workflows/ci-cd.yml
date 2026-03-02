@@ -11,7 +11,7 @@
 #
 # REQUIRED SECRETS (configure in GitHub → Settings → Secrets):
 # -----------------------------------------------------------
-# SONARQUBE_TOKEN        - SonarQube authentication token
+# SONAR_TOKEN        - SonarQube authentication token
 # SONARQUBE_HOST_URL     - SonarQube server URL (e.g. https://sonar.yourserver.com)
 # HARBOR_REGISTRY        - Harbor registry URL (e.g. harbor.yourserver.com)
 # HARBOR_USERNAME        - Harbor robot account username
@@ -117,7 +117,7 @@ jobs:
       - name: "🔬 SonarQube Scan"
         uses: SonarSource/sonarqube-scan-action@v3
         env:
-          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONARQUBE_HOST_URL }}
         with:
           args: >
@@ -132,7 +132,7 @@ jobs:
         uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
-          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONARQUBE_HOST_URL }}
 
   # ---------------------------------------------------------------------------
