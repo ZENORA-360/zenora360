@@ -114,6 +114,9 @@ jobs:
       - name: "Install dependencies"
         run: bun install --frozen-lockfile
 
+      - name: SonarQube Scan Debug
+        run: sonar-scanner -X
+
       - name: "🔬 SonarQube Scan"
         uses: SonarSource/sonarqube-scan-action@v3
         env:
