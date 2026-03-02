@@ -1,16 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+/* eslint-disable react-refresh/only-export-components */
+
+import React, { createContext, useState, useEffect, ReactNode } from "react";
 
 export type Language = "fr" | "en";
 
-interface LanguageContextType {
+export interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+export const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export const translations = {
+const translations = {
   fr: {
     // Navigation
     "nav.home": "Accueil",
@@ -1002,10 +1004,4 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   );
 };
 
-export const useLanguage = () => {
-  const context = useContext(LanguageContext);
-  if (context === undefined) {
-    throw new Error("useLanguage must be used within a LanguageProvider");
-  }
-  return context;
-};
+// `useLanguage` hook is defined in `./useLanguage` to satisfy react-refresh rules.

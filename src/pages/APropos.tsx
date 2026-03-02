@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
 import { Check, Eye, Lightbulb, Target, Users, Award, Compass, Zap, Shield } from "lucide-react";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/useLanguage";
 import heroDigital from "@/assets/hero-digital.jpg";
 
 const APropos = () => {

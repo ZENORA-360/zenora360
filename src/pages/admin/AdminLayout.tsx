@@ -12,7 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/useLanguage";
 import logoZenora from "@/assets/logo-zenora-full.png";
 
 interface AdminLayoutProps {

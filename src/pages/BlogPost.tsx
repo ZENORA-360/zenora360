@@ -1,15 +1,27 @@
 import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock, User, Tag, Share2, Facebook, Twitter, Linkedin, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  User,
+  Tag,
+  Share2,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Loader2,
+  type LucideIcon,
+} from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { useBlog } from "@/hooks/useBlog";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/useLanguage";
 
-const ShareButton = ({ icon: Icon, href, label }: { icon: any; href: string; label: string }) => (
+const ShareButton = ({ icon: Icon, href, label }: { icon: LucideIcon; href: string; label: string }) => (
   <a
     href={href}
     target="_blank"

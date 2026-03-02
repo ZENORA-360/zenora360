@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBlog } from "@/hooks/useBlog";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/useLanguage";
 import { SEO } from "@/components/SEO";
 import { BlogFormData } from "@/types/blog";
 import { toast } from "sonner";
@@ -70,7 +70,7 @@ export default function AdminBlogEditor() {
     }
   }, [id, posts]);
 
-  const handleChange = (field: keyof BlogFormData, value: any) => {
+  const handleChange = <K extends keyof BlogFormData>(field: K, value: BlogFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 

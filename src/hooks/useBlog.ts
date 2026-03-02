@@ -124,8 +124,21 @@ const mockPosts: BlogPost[] = [
 const simulateDelay = (ms: number = 800) =>
   new Promise(resolve => setTimeout(resolve, ms));
 
+const getErrorName = (err: unknown): string | undefined => {
+  if (typeof err !== 'object' || err === null) return undefined;
+  if (!('name' in err)) return undefined;
+  const name = (err as Record<string, unknown>).name;
+  return typeof name === 'string' ? name : undefined;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: {
+    effectiveType?: string;
+  };
+};
+
 const checkConnectionSpeed = (): ConnectionStatus => {
-  const connection = (navigator as any).connection;
+  const connection = (navigator as NavigatorWithConnection).connection;
   if (!navigator.onLine) return 'offline';
   if (connection) {
     if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
@@ -205,8 +218,8 @@ export const useBlog = () => {
       });
       const { data, total, page, totalPages: tp } = response.data;
       setPosts(data, total, page, tp);
-    } catch (err: any) {
-      if (err.name === 'CanceledError') return;
+    } catch (err: unknown) {
+      if (getErrorName(err) === 'CanceledError') return;
       console.log('API unavailable, using mock data');
       await simulateDelay(400);
 

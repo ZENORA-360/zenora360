@@ -8,7 +8,7 @@ import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBlog } from "@/hooks/useBlog";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/useLanguage";
 import { BlogPost } from "@/types/blog";
 
 const BlogCard = ({ post, index, language }: { post: BlogPost; index: number; language: string }) => {

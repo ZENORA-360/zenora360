@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FileText, Eye, TrendingUp, Plus, ArrowRight } from "lucide-react";
+import { FileText, Eye, TrendingUp, Plus, ArrowRight, type LucideIcon } from "lucide-react";
 import AdminLayout from "./AdminLayout";
 import { Button } from "@/components/ui/button";
 import { useBlog } from "@/hooks/useBlog";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/useLanguage";
 import { SEO } from "@/components/SEO";
 
 const StatCard = ({ 
@@ -15,7 +15,7 @@ const StatCard = ({
   trend, 
   color 
 }: { 
-  icon: any; 
+  icon: LucideIcon; 
   label: string; 
   value: number | string; 
   trend?: string;
