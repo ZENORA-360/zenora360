@@ -84,8 +84,9 @@ jobs:
 
       - name: "Gitleaks - Secret Scanning"
         uses: gitleaks/gitleaks-action@v2
-        # env:
-        #   TOKEN: ${{ secrets.TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
         with:
           args: --path=. --report-format=github --redact
 
