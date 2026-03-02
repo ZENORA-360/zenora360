@@ -114,6 +114,9 @@ jobs:
       - name: "Install dependencies"
         run: bun install --frozen-lockfile
 
+      - name: Debug SonarQube URL
+        run: echo "SONAR_HOST_URL is ${{ secrets.SONARQUBE_HOST_URL }}"
+
       - name: "🔬 SonarQube Scan"
         uses: SonarSource/sonarqube-scan-action@v3
         env:
