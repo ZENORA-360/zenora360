@@ -117,7 +117,7 @@ jobs:
       - name: Debug SonarQube vars
         run: |
           echo "SONAR_HOST_URL: ${SONAR_HOST_URL:0:20}"
-          echo "SONAR_TOKEN: ${SONAR_TOKEN:0:5}..." 
+          echo "SONAR_TOKEN: ${SONAR_TOKEN:0:20}" 
 
       - name: "🔬 SonarQube Scan"
         uses: SonarSource/sonarqube-scan-action@v3
