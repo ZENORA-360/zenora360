@@ -147,9 +147,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@latest
+        uses: aquasecurity/setup-trivy@v0.69.2
         with:
-          version: v0.56.1
+          version: v0.69.2
 
       - name: Cache Trivy DB
         uses: actions/cache@v4
