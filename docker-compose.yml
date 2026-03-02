@@ -13,14 +13,12 @@
 #   DOMAIN=zenora360.com
 # =============================================================================
 
-version: "3.9"
-
 services:
   # ---------------------------------------------------------------------------
   # Web Application (Nginx + React SPA)
   # ---------------------------------------------------------------------------
   web:
-    image: ${HARBOR_REGISTRY:-harbor.local}/${HARBOR_PROJECT:-zenora}/zenora-web:latest
+    image: ${HARBOR_REGISTRY:-harbor.zenora360.com}/${HARBOR_PROJECT:-zenora-internal}/zenora-web:latest
     container_name: zenora-web
     restart: unless-stopped
     ports:
@@ -45,6 +43,12 @@ services:
       - /var/run
       - /var/log/nginx
     labels:
+      - "project=zenora-frontend"
       - "com.zenora.service=web"
       - "com.zenora.version=1.0"
       - "com.centurylinklabs.watchtower.enable=true"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

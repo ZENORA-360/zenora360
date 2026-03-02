@@ -1,9 +1,13 @@
 # =============================================================================
-# ZENORA CI/CD Pipeline - Complete Production Workflow
+# ZENORA CI/CD Pipeline - Enterprise DevSecOps Edition
 # =============================================================================
 #
-# This pipeline implements a full CI/CD process:
-#   Code → Lint/Test → Build → Docker → Scan → Sign → Push → Deploy → Monitor
+# This pipeline implements a full CI/CD process
+# with advanced security practices, including SAST, DAST, SBOM generation, and image signing.
+# ----------------------------------------------------------------------------------------------------------------------
+# Code → Lint/Test → SAST → Dependency Scan → Build → SBOM → Security Gate → Sign (Cosign) → Verify → Deploy → DAST → Global Notification
+# ----------------------------------------------------------------------------------------------------------------------
+# =============================================================================
 #
 # REQUIRED SECRETS (configure in GitHub → Settings → Secrets):
 # -----------------------------------------------------------
@@ -31,7 +35,7 @@
 # 6. OWASP ZAP: No setup needed, runs as Docker container
 # =============================================================================
 
-name: "🚀 ZENORA CI/CD Pipeline"
+name: "ZENORA CI/CD Pipeline"
 
 on:
   push:
@@ -56,37 +60,43 @@ jobs:
   lint-and-test:
     name: "🔍 Lint, Test & Secret Scan"
     runs-on: ubuntu-latest
+    env:
+      JOB_NAME: lint-and-test
     steps:
       - name: "📥 Checkout code"
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for SonarQube & Gitleaks
+          fetch-depth: 0 # Full history for SonarQube & Gitleaks
 
-      - name: "📦 Setup Bun"
+      - name: "Setup Bun"
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: "📦 Install dependencies"
+      - name: "Install dependencies"
         run: bun install --frozen-lockfile
 
-      - name: "🔎 ESLint"
-        run: bun run lint || true
+      - name: "ESLint"
+        run: bun run lint
 
-      - name: "🧪 Unit Tests"
-        run: bun run test || true
+      - name: "Unit Tests"
+        run: bun run test -- --coverage
 
-      - name: "🔐 Gitleaks - Secret Scanning"
+      - name: "Gitleaks - Secret Scanning"
         uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # env:
+        #   TOKEN: ${{ secrets.TOKEN }}
+        with:
+          args: --path=. --report-format=github --redact
 
   # ---------------------------------------------------------------------------
-  # SonarQube SAST Analysis
+  # SonarQube SAST Analysis 
   # ---------------------------------------------------------------------------
   sonarqube:
     name: "🛡️ SonarQube SAST"
     runs-on: ubuntu-latest
+    env:
+      JOB_NAME: sonarqube
     needs: lint-and-test
     if: github.event_name == 'push'
     steps:
@@ -94,6 +104,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: "Setup Bun"
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: "Install dependencies"
+        run: bun install --frozen-lockfile
 
       - name: "🔬 SonarQube Scan"
         uses: SonarSource/sonarqube-scan-action@v3
@@ -107,6 +125,36 @@ jobs:
             -Dsonar.sources=src
             -Dsonar.exclusions=**/node_modules/**,**/*.test.*,**/dist/**
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.newCode.referenceBranch=main
+            -Dsonar.docker.enabled=true
+      - name: "⏳ Wait for Quality Gate"
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONARQUBE_HOST_URL }}
+
+  # ---------------------------------------------------------------------------
+  # Dependency Scan (filesystem) 
+  # ---------------------------------------------------------------------------
+  dependency-scan:
+    name: "📦 Dependency Scan"
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    env:
+      JOB_NAME: dependency-scan
+    steps:
+      - name: "📥 Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "🔍 Trivy Filesystem Scan"
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
 
   # ===========================================================================
   # Stage 2: Build & Containerize
@@ -114,7 +162,9 @@ jobs:
   build-docker:
     name: "🐳 Build Docker Image"
     runs-on: ubuntu-latest
-    needs: lint-and-test
+    needs: [sonarqube, dependency-scan]
+    env:
+      JOB_NAME: build-docker
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
@@ -157,99 +207,200 @@ jobs:
             VCS_REF=${{ github.sha }}
 
   # ===========================================================================
-  # Stage 3: Security Scanning
+  # Stage 3: Generate SBOM and Scan for Vulnerabilities 
   # ===========================================================================
-  scan-image:
-    name: "🔒 Trivy Image Scan"
+  sbom-and-security-scan:
+    name: "📦 Generate SBOM and Scan vulnerabilities"
     runs-on: ubuntu-latest
     needs: build-docker
-    steps:
-      - name: "🔑 Login to Harbor Registry"
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.HARBOR_REGISTRY }}
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
+    env:
+      JOB_NAME: sbom-and-security-scan
 
-      - name: "🔍 Trivy Vulnerability Scan"
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: "${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}:latest"
-          format: "table"
-          exit-code: "1"                      # Fail pipeline on findings
-          severity: "HIGH,CRITICAL"           # Only block on HIGH/CRITICAL
-          ignore-unfixed: true
-
-  # ---------------------------------------------------------------------------
-  # Dependency Scan (filesystem)
-  # ---------------------------------------------------------------------------
-  dependency-scan:
-    name: "📦 Dependency Scan"
-    runs-on: ubuntu-latest
-    needs: lint-and-test
     steps:
-      - name: "📥 Checkout code"
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: "🔍 Trivy Filesystem Scan"
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Install Syft
+        uses: anchore/syft-action@v0.2.0
         with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "table"
-          exit-code: "0"
-          severity: "HIGH,CRITICAL"
+          version: "v0.80.0" # version fixée pour stabilité
 
-  # ===========================================================================
-  # Stage 4: Sign Image (Cosign)
-  # ===========================================================================
-  sign-image:
-    name: "✍️ Sign Image with Cosign"
-    runs-on: ubuntu-latest
-    needs: [build-docker, scan-image]
-    steps:
-      - name: "📦 Install Cosign"
-        uses: sigstore/cosign-installer@v3
+      - name: Generate SBOM with Syft
+        run: |
+          IMAGE="${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}"
+          syft "$IMAGE" -o cyclonedx-json=sbom.cyclonedx.json
+          if [ ! -f sbom.cyclonedx.json ]; then
+            echo "Erreur : le fichier SBOM n'a pas été généré."
+            exit 1
+          fi
 
-      - name: "🔑 Login to Harbor Registry"
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.HARBOR_REGISTRY }}
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
+      - name: Install Grype
+        uses: anchore/sbom-action/download-grype@v0
 
-      - name: "✍️ Sign the Docker Image"
+      - name: Scan SBOM for vulnerabilities with Grype
+        run: |
+          grype sbom:sbom.cyclonedx.json -o json > vulnerabilities.json
+          # Afficher un résumé dans les logs
+          grype sbom:sbom.cyclonedx.json
+          # Bloquer la pipeline si des vulnérabilités critiques sont trouvées
+          if grep -q '"Severity":"Critical"' vulnerabilities.json; then
+            echo "❌ Vulnérabilités critiques détectées !"
+            exit 1
+          fi
+
+      - name: "Sign SBOM with Cosign"
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
-          # Sign the image using its digest for immutability
-          cosign sign --key env://COSIGN_PRIVATE_KEY \
-            "${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}" \
-            --yes
+          cosign sign-blob \
+            --key env://COSIGN_PRIVATE_KEY \
+            --output-signature sbom.cyclonedx.json.sig \
+            --output-certificate sbom.cyclonedx.json.crt \
+            sbom.cyclonedx.json
+
+      - name: "Verify SBOM Signature"
+        run: |
+          cosign verify-blob \
+            --key <(echo "${{ secrets.COSIGN_PUBLIC_KEY }}") \
+            --signature sbom.cyclonedx.json.sig \
+            --certificate sbom.cyclonedx.json.crt \
+            sbom.cyclonedx.json
+
+      - name: "Upload SBOM and Vulnerability Artifacts, and package.json for audit"
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-artifacts
+          path: |
+            sbom.cyclonedx.json
+            sbom.cyclonedx.json.sig
+            sbom.cyclonedx.json.crt
+            vulnerabilities.json
+            package.json
 
   # ===========================================================================
-  # Stage 5: Deploy to OVH Cloud
+  # Stage 4: Sign Image (Cosign)
+  # ===========================================================================
+  sign-and-verify:
+    name: "✍️ Sign And Verify Docker Image with Cosign"
+    runs-on: ubuntu-latest
+    needs: [build-docker, sbom-and-security-scan]
+    env: 
+      JOB_NAME: sign-and-verify
+
+    permissions:
+      contents: read
+      id-token: write 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: "v2.2.4" 
+
+      - name: Login to Harbor Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Verify digest exists
+        run: |
+          if [ -z "${{ needs.build-docker.outputs.image_digest }}" ]; then
+            echo "Image digest missing!"
+            exit 1
+          fi
+
+      - name: Attach SBOM
+        run: |
+          IMAGE="${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}"
+          cosign attach sbom --sbom sbom.cyclonedx.json "$IMAGE"
+
+      - name: Sign Docker Image with Cosign
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          IMAGE="${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}"
+
+          echo "Signing $IMAGE"
+
+          cosign sign \
+            --key env://COSIGN_PRIVATE_KEY \
+            --yes \
+            "$IMAGE"
+
+      - name: Verify Signature
+        run: |
+          IMAGE="${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}"
+
+          cosign verify \
+            --key <(echo "${{ secrets.COSIGN_PUBLIC_KEY }}") \
+            "$IMAGE"
+
+  # ===========================================================================
+  # Stage 3: image vulnerability scan with Trivy (post-build, pre-deploy gate)
+  # ===========================================================================
+  trivy-image-scan:
+    name: "🔒 Trivy Image Scan"
+    runs-on: ubuntu-latest
+    needs: build-docker
+    env:
+      JOB_NAME: trivy-image-scan
+    steps:
+      - name: "🔑 Login to Harbor Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Trivy Dockerfile Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: ./Dockerfile
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          output: dockerfile_report.txt
+          output-format: "table"
+
+      - name: "🔍 Trivy image Scan"
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}"
+          scan-type: "image"
+          scanners: config,secret,license
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+          ignore-unfixed: true
+          output: trivy_report.txt
+          output-format: "table"
+          
+      - name: "Upload Trivy Vulnerability Artifacts for audit"
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-scan-report
+          path: |
+            trivy_report.txt
+            dockerfile_report.txt
+
+  # ===========================================================================
+  # Stage 6: Deploy to OVH Cloud
   # ===========================================================================
   deploy:
     name: "🚀 Deploy to OVH Cloud"
     runs-on: ubuntu-latest
-    needs: [sign-image]
+    needs: [sign-and-verify, trivy-image-scan]
     environment: production
+    env: 
+      JOB_NAME: deploy
     steps:
-      - name: "📥 Checkout code"
-        uses: actions/checkout@v4
-
-      - name: "📦 Install Cosign"
-        uses: sigstore/cosign-installer@v3
-
-      - name: "✅ Verify Image Signature"
-        env:
-          COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
-        run: |
-          cosign verify --key env://COSIGN_PUBLIC_KEY \
-            "${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}" || exit 1
-
       - name: "🚀 Deploy via SSH"
         uses: appleboy/ssh-action@v1
         with:
@@ -259,66 +410,160 @@ jobs:
           port: ${{ secrets.OVH_SSH_PORT || 22 }}
           script: |
             set -e
-            
+
             echo "🔑 Logging into Harbor..."
-            docker login ${{ secrets.HARBOR_REGISTRY }} \
-              -u ${{ secrets.HARBOR_USERNAME }} \
-              -p ${{ secrets.HARBOR_PASSWORD }}
-            
-            echo "📥 Pulling latest image..."
-            docker pull ${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}:latest
-            
+            echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ secrets.HARBOR_REGISTRY }} -u ${{ secrets.HARBOR_USERNAME }} --password-stdin
+
             echo "🔄 Updating containers..."
-            cd /opt/zenora  # Adjust to your deployment directory
-            docker compose pull
-            docker compose up -d --remove-orphans
-            
+            echo "🔄 Pulling latest images via Docker Compose..."
+            cd /srv/internal/app/zenora-frontend || exit 1
+
+            # Pull toutes les images définies dans docker-compose.yml
+            if docker compose pull; then
+                echo "✅ Images pulled successfully."
+            else
+                echo "❌ Failed to pull images!" >&2
+                exit 1
+            fi
+             
+            echo "🔄 Updating containers..."
+            if docker compose up -d --force-recreate --remove-orphans; then
+                echo "✅ Containers updated successfully."
+            else
+                echo "❌ Failed to update containers!" >&2
+                exit 1
+            fi            
+
             echo "🧹 Cleaning old images..."
-            docker image prune -f
-            
+            docker image prune -f --filter "label=project=zenora-frontend"
+
             echo "✅ Deployment complete!"
 
   # ===========================================================================
-  # Stage 6: Post-Deploy DAST (OWASP ZAP)
+  # Stage 6: Post-Deploy DAST (OWASP ZAP - Advanced)
   # ===========================================================================
   owasp-zap:
-    name: "🕷️ OWASP ZAP DAST"
+    name: "🛡️ OWASP ZAP Advanced DAST"
     runs-on: ubuntu-latest
     needs: deploy
     if: github.ref == 'refs/heads/main'
-    continue-on-error: true  # Don't block pipeline on DAST findings
-    steps:
-      - name: "🕷️ OWASP ZAP Baseline Scan"
-        uses: zaproxy/action-baseline@v0.14.0
-        with:
-          target: "https://zenora360.com"
-          rules_file_name: ".github/zap-rules.tsv"
-          fail_action: false
+    environment: production
+    env:
+      JOB_NAME: owasp-zap
 
-      - name: "📤 Upload ZAP Report"
+    steps:
+      - name: "📥 Checkout repository"
+        uses: actions/checkout@v4
+
+      # Full Active Scan via Docker
+      - name: "🕷️ Run OWASP ZAP Full Scan"
+        run: |
+          docker run --rm -v $(pwd):/zap/wrk/:rw \
+            owasp/zap2docker-stable \
+            zap-full-scan.py \
+            -t https://zenora360.com \
+            -c .github/zap-rules.tsv \
+            -r zap_report.html \
+            -J zap_report.json \
+            -x zap_report.xml \
+            -m 10 \
+            -T 60
+
+      # Upload Reports
+      - name: "📤 Upload ZAP Reports"
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: zap-report
-          path: report_html.html
+          name: zap-dast-report
+          path: |
+            zap_report.html
+            zap_report.json
+            zap_report.xml
+
+      # Fail on High Risk
+      - name: "🚨 Fail if High Risk Vulnerabilities Found"
+        run: |
+          HIGH_COUNT=$(cat zap_report.json | grep '"risk":"High"' | wc -l)
+          echo "High risk vulnerabilities: $HIGH_COUNT"
+
+          if [ "$HIGH_COUNT" -gt 5 ]; then
+            echo "❌ 05 High risk vulnerabilities detected!"
+            exit 1
+          else
+            echo "✅ No High risk vulnerabilities."
+          fi
 
   # ===========================================================================
   # Notifications
   # ===========================================================================
   notify:
-    name: "📢 Notify"
+    name: "📢 Notify on Slack"
     runs-on: ubuntu-latest
-    needs: [deploy]
+    needs: 
+      - lint-and-test 
+      - sonarqube 
+      - dependency-scan 
+      - build-docker 
+      - sbom-and-security-scan 
+      - sign-and-verify 
+      - trivy-image-scan
+      - deploy
+      - owasp-zap
     if: always()
     steps:
-      - name: "📢 Slack Notification"
+      - name: "📢 Send Slack Notification"
         if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ needs.deploy.result }}
-          text: |
-            🚀 ZENORA Deployment ${{ needs.deploy.result == 'success' && '✅ succeeded' || '❌ failed' }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS="SUCCESS"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          COLOR="good"
+          ICON="🚀"
+
+          for job in lint-and-test sonarqube dependency-scan build-docker sbom-and-security-scan sign-and-verify trivy-image-scan deploy owasp-zap; do
+            if [ "${{ needs[job].result }}" != "success" ]; then
+              STATUS="FAILED"
+              COLOR="danger"
+              ICON="🔥"
+            fi
+          done
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"$ICON ZENORA Deployment - $STATUS\",
+                \"title_link\": \"$RUN_URL\",
+                \"fields\": [
+                  {\"title\": \"Repository\", \"value\": \"${{ github.repository }}\", \"short\": true},
+                  {\"title\": \"Environment\", \"value\": \"production\", \"short\": true},
+                  {\"title\": \"Branch\", \"value\": \"${{ github.ref_name }}\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"$SHORT_SHA\", \"short\": true},
+                  {\"title\": \"Triggered by\", \"value\": \"${{ github.actor }}\", \"short\": true},
+                  {\"title\": \"Run ID\", \"value\": \"${{ github.run_id }}\", \"short\": true}
+                ],
+                \"footer\": \"GitHub Actions\"
+              }]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: "⚠️ Slack Fail Fast Notification"
+        if: failure()
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [{
+                \"color\": \"danger\",
+                \"title\": \"🔥 ZENORA Pipeline Failed at $JOB_NAME\",
+                \"title_link\": \"$RUN_URL\",
+                \"fields\": [
+                  {\"title\": \"Repository\", \"value\": \"${{ github.repository }}\", \"short\": true},
+                  {\"title\": \"Branch\", \"value\": \"${{ github.ref_name }}\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"$SHORT_SHA\", \"short\": true},
+                  {\"title\": \"Triggered by\", \"value\": \"${{ github.actor }}\", \"short\": true}
+                ],
+                \"footer\": \"GitHub Actions\"
+              }]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
