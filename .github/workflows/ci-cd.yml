@@ -99,7 +99,7 @@ jobs:
     env:
       JOB_NAME: sonarqube
     needs: lint-and-test
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - name: "📥 Checkout code"
         uses: actions/checkout@v4
@@ -122,12 +122,10 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=zenora-web
-            -Dsonar.projectName="ZENORA Web"
             -Dsonar.sources=src
             -Dsonar.exclusions=**/node_modules/**,**/*.test.*,**/dist/**
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.newCode.referenceBranch=main
-            -Dsonar.docker.enabled=true
       - name: "⏳ Wait for Quality Gate"
         uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
