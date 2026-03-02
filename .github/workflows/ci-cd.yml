@@ -498,6 +498,8 @@ jobs:
   notify:
     name: "📢 Notify on Slack"
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     needs: 
       - lint-and-test 
       - sonarqube 
@@ -511,7 +513,7 @@ jobs:
     if: always()
     steps:
       - name: "📢 Send Slack Notification"
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
         run: |
           STATUS="SUCCESS"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
@@ -544,9 +546,7 @@ jobs:
                 \"footer\": \"GitHub Actions\"
               }]
             }" \
-            ${{ secrets.SLACK_WEBHOOK_URL }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+            $SLACK_WEBHOOK_URL
 
       - name: "⚠️ Slack Fail Fast Notification"
         if: failure()
@@ -568,7 +568,5 @@ jobs:
                 \"footer\": \"GitHub Actions\"
               }]
             }" \
-            ${{ secrets.SLACK_WEBHOOK_URL }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+            $SLACK_WEBHOOK_URL
 
