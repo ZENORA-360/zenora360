@@ -155,8 +155,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/trivy
-          key: trivy-db
-          restore-keys: trivy-db
+          key: trivy-db-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: trivy-db-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: "🔍 Run Trivy Filesystem Scan"
         run: |
