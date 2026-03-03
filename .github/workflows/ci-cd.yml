@@ -146,10 +146,10 @@ jobs:
       - name: "📥 Checkout code"
         uses: actions/checkout@v4
 
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@v0.56.1
-        with:
-          version: v0.56.1
+      # - name: Install Trivy
+      #   uses: aquasecurity/setup-trivy@v0.56.1
+      #   with:
+      #     version: v0.56.1
 
       - name: Cache Trivy DB
         uses: actions/cache@v4
@@ -158,13 +158,24 @@ jobs:
           key: trivy-db-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: trivy-db-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
-      - name: "🔍 Run Trivy Filesystem Scan"
-        run: |
-          trivy fs \
-            --severity HIGH,CRITICAL \
-            --exit-code 1 \
-            --format table \
-            .
+      # - name: "🔍 Run Trivy Filesystem Scan"
+      #   run: |
+      #     trivy fs \
+      #       --severity HIGH,CRITICAL \
+      #       --exit-code 1 \
+      #       --format table \
+      #       .
+
+      - name: Trivy Dockerfile Scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: config
+          scan-ref: ./Dockerfile
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          output: dockerfile_report.txt
+          output-format: "table"
 
   # ===========================================================================
   # Stage 2: Build & Containerize
