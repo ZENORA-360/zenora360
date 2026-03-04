@@ -194,9 +194,9 @@ jobs:
       - name: "📥 Checkout code"
         uses: actions/checkout@v4
 
-      - name: Debug Harbor login
-        run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" | docker login https://harbor.zenora360.com -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
+      # - name: Debug Harbor login
+      #   run: |
+      #     echo "${{ secrets.HARBOR_PASSWORD }}" | docker login https://harbor.zenora360.com -u "${{ secrets.HARBOR_USERNAME }}" --password-stdin
 
       - name: "🏷️ Docker metadata"
         id: meta
