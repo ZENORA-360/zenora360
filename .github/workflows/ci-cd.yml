@@ -195,7 +195,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Debug Credentials (attention, risqué !)
-        if: false  # Désactivé par défaut, à activer uniquement pour le débogage
+        # if: false  # Désactivé par défaut, à activer uniquement pour le débogage
         run: |
           echo "USERNAME=${{ secrets.HARBOR_USERNAME }}" >> debug.txt
           echo "REGISTRY=${{ secrets.HARBOR_REGISTRY }}" >> debug.txt
