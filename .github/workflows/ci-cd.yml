@@ -196,14 +196,14 @@ jobs:
 
       - name: Debug Credentials
         run: |
-          echo "USERNAME=${{ secrets.HARBOR_USERNAME:0:50 }}"
-          echo "REGISTRY=${{ secrets.HARBOR_REGISTRY:0:50 }}"
-          echo "PASSWORD=${{ secrets.HARBOR_PASSWORD:0:50 }}"
-          echo "PROJECT=${{ secrets.HARBOR_PROJECT:0:50 }}"
-          echo "IMAGE_NAME=${{ env.IMAGE_NAME:0:50 }}"
-          echo "IMAGE_DIGEST=${{ needs.build-docker.outputs.image_digest:0:50 }}"
-          echo "COSIGN_PRIVATE_KEY=${{ secrets.COSIGN_PRIVATE_KEY:0:50 }}"
-          echo "COSIGN_PASSWORD=${{ secrets.COSIGN_PASSWORD:0:50 }}"
+          echo "USERNAME=${{ secrets.HARBOR_USERNAME }}"
+          echo "REGISTRY=${{ secrets.HARBOR_REGISTRY }}"
+          echo "PASSWORD=${{ secrets.HARBOR_PASSWORD }}"
+          echo "PROJECT=${{ secrets.HARBOR_PROJECT }}"
+          echo "IMAGE_NAME=${{ env.IMAGE_NAME }}"
+          echo "IMAGE_DIGEST=${{ needs.build-docker.outputs.image_digest }}"
+          echo "COSIGN_PRIVATE_KEY=${{ secrets.COSIGN_PRIVATE_KEY }}"
+          echo "COSIGN_PASSWORD=${{ secrets.COSIGN_PASSWORD }}"
 
       - name: Test login with explicit registry
         run: |
