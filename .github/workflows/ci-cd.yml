@@ -194,16 +194,13 @@ jobs:
       - name: "📥 Checkout code"
         uses: actions/checkout@v4
 
-      - name: Debug Credentials (attention, risqué !)
-        if: false
+      - name: Debug Credentials
         run: |
-          echo "USERNAME=${{ secrets.HARBOR_USERNAME }}" >> debug.txt
-          echo "REGISTRY=${{ secrets.HARBOR_REGISTRY }}" >> debug.txt
-          echo "PASSWORD=*****" >> debug.txt  # Ne jamais afficher le mot de passe !
-          echo "PROJECT=${{ secrets.HARBOR_PROJECT }}" >> debug.txt
-          echo "IMAGE_NAME=${{ env.IMAGE_NAME }}" >> debug.txt
-          echo "IMAGE_DIGEST=${{ needs.build-docker.outputs.image_digest }}" >> debug.txt
-          cat debug.txt
+          echo "USERNAME=${{ secrets.HARBOR_USERNAME }}"
+          echo "REGISTRY=${{ secrets.HARBOR_REGISTRY }}"
+          echo "PROJECT=${{ secrets.HARBOR_PROJECT }}"
+          echo "IMAGE_NAME=${{ env.IMAGE_NAME }}"
+          echo "PASSWORD=${{ secrets.HARBOR_PASSWORD }}"
 
       - name: Test login with explicit registry
         run: |
