@@ -196,7 +196,7 @@ jobs:
 
       - name: Debug Credentials
         run: |
-          echo "USERNAME=${{ secrets.HARBOR_USERNAME:+yes}}"
+          echo "USERNAME=${{ secrets.HARBOR_USERNAME:0:50 }}"
           echo "REGISTRY=${{ secrets.HARBOR_REGISTRY:0:50 }}"
           echo "PASSWORD=${{ secrets.HARBOR_PASSWORD:0:50 }}"
           echo "PROJECT=${{ secrets.HARBOR_PROJECT:0:50 }}"
