@@ -250,21 +250,17 @@ jobs:
           format: cyclonedx-json
           output-file: sbom.cyclonedx.json
 
-      - name: Install Grype
-        uses: anchore/sbom-action/download-grype@v0
-
       - name: Scan SBOM for vulnerabilities with Grype
-        run: |
-          grype sbom:sbom.cyclonedx.json -o json > vulnerabilities.json
-          # Afficher un résumé dans les logs
-          grype sbom:sbom.cyclonedx.json
-          # Bloquer la pipeline si des vulnérabilités critiques sont trouvées
-          if grep -q '"Severity":"Critical"' vulnerabilities.json; then
-            echo "❌ Vulnérabilités critiques détectées !"
-            exit 1
-          fi
+        uses: anchore/scan-action@v3
+        with:
+          sbom: sbom.cyclonedx.json
+          fail-build: true
+          severity-cutoff: critical
 
-      - name: "Sign SBOM with Cosign"
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign SBOM with Cosign
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
@@ -275,7 +271,7 @@ jobs:
             --output-certificate sbom.cyclonedx.json.crt \
             sbom.cyclonedx.json
 
-      - name: "Verify SBOM Signature"
+      - name: Verify SBOM Signature
         run: |
           cosign verify-blob \
             --key <(echo "${{ secrets.COSIGN_PUBLIC_KEY }}") \
@@ -283,7 +279,7 @@ jobs:
             --certificate sbom.cyclonedx.json.crt \
             sbom.cyclonedx.json
 
-      - name: "Upload SBOM and Vulnerability Artifacts, and package.json for audit"
+      - name: Upload SBOM and Vulnerability Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: audit-artifacts
@@ -291,9 +287,6 @@ jobs:
             sbom.cyclonedx.json
             sbom.cyclonedx.json.sig
             sbom.cyclonedx.json.crt
-            vulnerabilities.json
-            package.json
-
   # ===========================================================================
   # Stage 4: Sign Image (Cosign)
   # ===========================================================================
