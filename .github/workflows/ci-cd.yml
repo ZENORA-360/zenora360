@@ -186,6 +186,7 @@ jobs:
     # needs: [sonarqube]
     env:
       JOB_NAME: build-docker
+      IMAGE_NAME: zenora-web
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
