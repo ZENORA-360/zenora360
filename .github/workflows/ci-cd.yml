@@ -272,6 +272,7 @@ jobs:
         run: |
           cosign sign-blob \
             --key env://COSIGN_PRIVATE_KEY \
+            --password-env COSIGN_PASSWORD \
             --output-signature sbom.spdx.json.sig \
             --output-certificate sbom.spdx.json.crt \
             sbom.spdx.json
@@ -280,6 +281,7 @@ jobs:
         run: |
           cosign verify-blob \
             --key <(echo "${{ secrets.COSIGN_PUBLIC_KEY }}") \
+            --password-env COSIGN_PASSWORD \
             --signature sbom.spdx.json.sig \
             --certificate sbom.spdx.json.crt \
             sbom.spdx.json
