@@ -244,16 +244,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate SBOM with Syft
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.74.4
         with:
           image: ${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}@${{ needs.build-docker.outputs.image_digest }}
-          format: syft-json
-          output-file: sbom.syft.json
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Check SBOM file
+        run: |
+          cat sbom.spdx.json
+          jq empty sbom.spdx.json
 
       - name: Scan SBOM for vulnerabilities with Grype
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v0.74.4
         with:
-          sbom: sbom.syft.json
+          sbom: sbom.spdx.json
           fail-build: true
           severity-cutoff: critical
 
@@ -267,27 +272,27 @@ jobs:
         run: |
           cosign sign-blob \
             --key env://COSIGN_PRIVATE_KEY \
-            --output-signature sbom.syft.json.sig \
-            --output-certificate sbom.syft.json.crt \
-            sbom.syft.json
+            --output-signature sbom.spdx.json.sig \
+            --output-certificate sbom.spdx.json.crt \
+            sbom.spdx.json
 
       - name: Verify SBOM Signature
         run: |
           cosign verify-blob \
             --key <(echo "${{ secrets.COSIGN_PUBLIC_KEY }}") \
-            --signature sbom.syft.json.sig \
-            --certificate sbom.syft.json.crt \
-            sbom.syft.json
+            --signature sbom.spdx.json.sig \
+            --certificate sbom.spdx.json.crt \
+            sbom.spdx.json
 
       - name: Upload SBOM and Vulnerability Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: audit-artifacts
           path: |
-            sbom.syft.json
-            sbom.syft.json.sig
-            sbom.syft.json.crt
- 
+            sbom.spdx.json
+            sbom.spdx.json.sig
+            sbom.spdx.json.crt
+
   # ===========================================================================
   # Stage 4: Sign Image (Cosign)
   # ===========================================================================
