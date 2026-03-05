@@ -219,6 +219,7 @@ jobs:
           echo "${{ secrets.HARBOR_REGISTRY }}"
           echo "${{ secrets.HARBOR_PROJECT }}"
           echo "${{ env.IMAGE_NAME }}"
+          echo "Final tag: ${{ steps.meta.outputs.tags }}"
 
       - name: Debug full image
         run: |
