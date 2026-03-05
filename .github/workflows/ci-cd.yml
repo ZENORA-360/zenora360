@@ -243,22 +243,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Scan SBOM for vulnerabilities with Grype
-        uses: anchore/scan-action@v7.3.2
-        with:
-          sbom: sbom.spdx.json
-          fail-build: true
-          severity-cutoff: critical
-          output-format: sarif
-          output-file: grype-results.sarif
-
-      - name: Upload Grype SARIF report
-        uses: actions/upload-artifact@v4
-        with:
-          name: grype-report
-          path: grype-results.sarif
-
-
       - name: Generate SBOM with Syft
         uses: anchore/sbom-action@v0.23.0
         with:
@@ -276,7 +260,7 @@ jobs:
         with:
           sbom: sbom.spdx.json
           fail-build: true #false
-          severity-cutoff: critical #medium
+          severity-cutoff: medium
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
@@ -309,7 +293,6 @@ jobs:
             sbom.spdx.json.sig
             sbom.spdx.json.crt
 
-  
   # ===========================================================================
   # Stage 4: Sign Image (Cosign)
   # ===========================================================================
