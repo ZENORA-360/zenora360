@@ -260,7 +260,7 @@ jobs:
         with:
           sbom: sbom.spdx.json
           fail-build: false
-          severity-cutoff: hight
+          severity-cutoff: low
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
