@@ -1,58 +1,56 @@
 # =============================================================================
 # ZENORA Web - Production Dockerfile
-# Multi-stage build for minimal, secure, and reproducible image
+# Multi-stage build for minimal, secure image
 # =============================================================================
 
-# --- Build Stage ---
+# Stage 1: Build
 FROM oven/bun:1.3.4 AS builder
 
 WORKDIR /app
 
-# Copy only necessary files for dependency installation
+# Copy dependency files first for better caching
 COPY package.json bun.lockb ./
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile
 
-# Copy source and build (exclude unnecessary files)
+# Copy source and build
 COPY . .
 RUN bun run build
 
-# --- Production Stage ---
-FROM nginx:1.27.1-alpine
+# Stage 2: Production (Nginx)
+FROM nginx:1.27-alpine AS production
 
-# Security: create non-root user
+# Security: run as non-root
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Copy custom nginx config (ensure it listens on 8080)
+# Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets
-COPY --from=builder --chown=appuser:appgroup /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Security: set permissions and healthcheck
-RUN chown -R appuser:appgroup /var/cache/nginx /var/log/nginx && \
-    mkdir -p /var/run/nginx && \
-    chown appuser:appgroup /var/run/nginx
+# Security headers & healthcheck
+RUN chown -R appuser:appgroup /usr/share/nginx/html && \
+    chown -R appuser:appgroup /var/cache/nginx && \
+    chown -R appuser:appgroup /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown appuser:appgroup /var/run/nginx.pid
 
 USER appuser
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
 
-# --- Build Metadata ---
+# Build metadata
 ARG BUILD_DATE
 ARG VCS_REF
-ARG VERSION=latest
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.source="https://github.com/zenora/zenora-web" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.vendor="ZENORA" \
       org.opencontainers.image.title="ZENORA Web" \
-      org.opencontainers.image.description="ZENORA Digital Solutions Platform" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.description="ZENORA Digital Solutions Platform"
