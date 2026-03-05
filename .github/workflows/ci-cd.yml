@@ -220,6 +220,10 @@ jobs:
           echo "${{ secrets.HARBOR_PROJECT }}"
           echo "${{ env.IMAGE_NAME }}"
 
+      - name: Debug full image
+        run: |
+          echo "${{ secrets.HARBOR_REGISTRY }}/${{ secrets.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}"
+
       - name: "🏗️ Build and Push Docker Image"
         id: build
         uses: docker/build-push-action@v6
