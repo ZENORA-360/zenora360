@@ -194,6 +194,9 @@ jobs:
       - name: "📥 Checkout code"
         uses: actions/checkout@v4
 
+      - name: Debug Username
+        run: echo "USERNAME=${{ secrets.HARBOR_USERNAME }}"
+
       - name: Debug Credentials
         run: |
           echo "USERNAME=${{ secrets.HARBOR_USERNAME }}"
